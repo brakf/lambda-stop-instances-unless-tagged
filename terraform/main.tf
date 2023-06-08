@@ -1,6 +1,6 @@
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_file = "../lambda_handler.py"
+  source_file = "../lambda_function.py"
   output_path = "temp_lambda_function.zip"
 }
 
@@ -27,7 +27,7 @@ resource "aws_iam_role_policy_attachment" "lambda_exec_policy_attachment" {
 data "aws_iam_policy_document" "ec2_stop_instances" {
   statement {
     actions = [
-      "ec2:DescribeInstances",
+      "ec2:Describe*",
       "ec2:StopInstances",
     ]
 
@@ -54,15 +54,18 @@ resource "aws_lambda_function" "lambda" {
   runtime       = "python3.9"
   role          = aws_iam_role.iam_for_lambda.arn
   filename      = data.archive_file.lambda_zip.output_path
+  timeout       = 60
 
   depends_on = [
     aws_iam_role_policy_attachment.lambda_exec_policy_attachment,
   ]
+
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 }
 
-resource "aws_cloudwatch_event_rule" "every_day_7pm" {
-  name                = "every_day_7pm"
-  schedule_expression = "cron(0 19 * * ? *)"
+resource "aws_cloudwatch_event_rule" "daily_stop_instances_unless_tagged" {
+  name                = "DailyStopInstancesUnlessTagged"
+  schedule_expression = "cron(0 ${var.stop_hour} * * ? *)"
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch" {
@@ -70,11 +73,11 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.every_day_7pm.arn
+  source_arn    = aws_cloudwatch_event_rule.daily_stop_instances_unless_tagged.arn
 }
 
-resource "aws_cloudwatch_event_target" "run_lambda_every_day_7pm" {
-  rule      = aws_cloudwatch_event_rule.every_day_7pm.name
+resource "aws_cloudwatch_event_target" "daily_stop_instances_unless_tagged" {
+  rule      = aws_cloudwatch_event_rule.daily_stop_instances_unless_tagged.name
   target_id = "LambdaFunction"
   arn       = aws_lambda_function.lambda.arn
 }

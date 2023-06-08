@@ -5,7 +5,7 @@ This project contains a Python AWS Lambda function to stop EC2 instances that do
 
 ## Python Lambda Function
 
-The Python script `lambda_handler.py` contains a Lambda function that stops any EC2 instances without a tag `DoNotShutDown` set to `true`. 
+The Python script `lambda_function.py` contains a Lambda function that stops any EC2 instances without a tag `DoNotShutDown` set to `true`. 
 
 ## Terraform Configuration
 
